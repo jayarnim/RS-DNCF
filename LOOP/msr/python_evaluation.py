@@ -12,7 +12,7 @@ from sklearn.metrics import (
     roc_auc_score,
     log_loss,
 )
-from ...utils.constants import (
+from ..utils.constants import (
     DEFAULT_USER_COL,
     DEFAULT_ITEM_COL,
     DEFAULT_RATING_COL,

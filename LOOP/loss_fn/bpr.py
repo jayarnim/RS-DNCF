@@ -1,4 +1,5 @@
-import torch.nn.functional as F
+import torch
 
-def bpr(pos, neg):
-    return -F.logsigmoid(pos - neg).mean()
+def bpr_func(pos, neg):
+    diff = pos - neg
+    return -torch.log(torch.sigmoid(diff)).mean()

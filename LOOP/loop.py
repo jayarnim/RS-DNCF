@@ -1,5 +1,4 @@
 from IPython.display import clear_output
-from time import perf_counter
 from statistics import mean
 import torch
 
@@ -26,30 +25,29 @@ class TrainingLoop:
         val_loader: torch.utils.data.dataloader.DataLoader, 
         loo_loader: torch.utils.data.dataloader.DataLoader, 
         n_epochs: int, 
-        interval: int=10,
+        warm_up: int=10,
+        interval: int=1,
     ):
         trn_task_loss_list = []
         val_task_loss_list = []
-        epoch_times = []
+        computing_cost_list = []
 
         for epoch in range(n_epochs):
             if epoch % 10 == 0:
                 print(f"EPOCH {epoch+1} START ---->>>>")
 
             # trn, val
-            t0 = perf_counter()
             kwargs = dict(
                 trn_loader=trn_loader, 
                 val_loader=val_loader, 
                 epoch=epoch,
                 n_epochs=n_epochs,
             )
-            trn_task_loss, val_task_loss = self.trainer.fit(**kwargs)
-            t1 = perf_counter() - t0
+            trn_task_loss, val_task_loss, computing_cost_list_per_batch = self.trainer.fit(**kwargs)
 
             trn_task_loss_list.append(trn_task_loss)
             val_task_loss_list.append(val_task_loss)
-            epoch_times.append(max(t1, 1e-9))
+            computing_cost_list.extend(computing_cost_list_per_batch)
 
             print(
                 f"TRN TASK LOSS: {trn_task_loss:.4f}",
@@ -58,7 +56,7 @@ class TrainingLoop:
             )
 
             # early stopping
-            if (epoch != 0) and ((epoch+1) % interval == 0):
+            if (epoch+1 > warm_up) and ((epoch+1) % interval == 0):
                 kwargs = dict(
                     dataloader=loo_loader, 
                     epoch=epoch,
@@ -69,16 +67,15 @@ class TrainingLoop:
                     break
                 else:
                     print(
-                        f"LEAVE ONE OUT CURRENT SCORE: {current_score:.4f}",
-                        f"BEST SCORE: {self.monitor.stopper.best_score:.4f}({self.monitor.stopper.best_epoch})",
+                        f"CURRENT SCORE: {current_score:.4f}",
+                        f"BEST SCORE: {self.monitor.stopper.best_score:.4f}",
+                        f"BEST EPOCH: {self.monitor.stopper.best_epoch}",
                         sep='\t',
                     )
 
             # log reset
             if (epoch + 1) % 50 == 0:
                 clear_output(wait=False)
-
-        clear_output(wait=False)
 
         history = dict(
             trn=trn_task_loss_list,
@@ -92,11 +89,21 @@ class TrainingLoop:
         if best_model_state is not None:
             self.model.load_state_dict(best_model_state)
 
+        clear_output(wait=False)
+
         print(
-            f"LEAVE ONE OUT BEST EPOCH: {best_epoch}",
-            f"LEAVE ONE OUT BEST SCORE: {best_score:.4f}",
-            f"MEAN OF PER EPOCH (/s): {mean(epoch_times):.4f}",
-            sep="\n"
+            "LEAVE ONE OUT",
+            f"\tBEST SCORE: {best_score:.4f}",
+            f"\tBEST EPOCH: {best_epoch}",
+            sep="\n",
+        )
+        print(
+            "COMPUTING COST FOR LEARNING",
+            f"\t(s/epoch): {sum(computing_cost_list)/n_epochs:.4f}",
+            f"\t(epoch/s): {n_epochs/sum(computing_cost_list):.4f}",
+            f"\t(s/batch): {mean(computing_cost_list):.4f}",
+            f"\t(batch/s): {1.0/mean(computing_cost_list):.4f}",
+            sep="\n",
         )
 
         return history

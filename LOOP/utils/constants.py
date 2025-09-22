@@ -10,3 +10,7 @@ from UTILS.constants import(
     DEFAULT_THRESHOLD,
     SEED,
 )
+
+from typing import Literal
+
+METRIC_FN = Literal["hr", "precision", "recall", "map", "ndcg"]

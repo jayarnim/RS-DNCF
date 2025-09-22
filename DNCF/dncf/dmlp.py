@@ -18,17 +18,16 @@ class Module(nn.Module):
         del self.init_args["self"]
         del self.init_args["__class__"]
 
-        # device setting
-        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        self.device = torch.device(DEVICE)
-
         # global attr
         self.n_users = n_users
         self.n_items = n_items
         self.n_factors = n_factors
         self.hidden = hidden
         self.dropout = dropout
-        self.interactions = interactions.to(self.device)
+        self.register_buffer(
+            name="interactions", 
+            tensor=interactions,
+        )
 
         # debugging args error
         self._assert_arg_error()
@@ -69,33 +68,35 @@ class Module(nn.Module):
     def ncf(self, user_idx, item_idx):
         rep_user, rep_item = self.rep(user_idx, item_idx)
         
-        concat = torch.cat(
+        kwargs = dict(
             tensors=(rep_user, rep_item), 
             dim=-1,
         )
-
+        concat = torch.cat(**kwargs)
         pred_vector = self.mlp_layers(concat)
 
         return pred_vector
 
     def rep(self, user_idx, item_idx):
-        user_id = self.user_id_embed(user_idx)
-        user_hist = self.user_hist_embed(user_idx, item_idx)
-        rep_user = torch.cat(
+        user_id = self.user_embed_id(user_idx)
+        user_hist = self.user_embed_hist(user_idx, item_idx)
+        kwargs = dict(
             tensors=(user_id, user_hist), 
             dim=-1,
         )
+        rep_user = torch.cat(**kwargs)
 
-        item_id = self.item_id_embed(item_idx)
-        item_hist = self.item_hist_embed(user_idx, item_idx)
-        rep_item = torch.cat(
+        item_id = self.item_embed_id(item_idx)
+        item_hist = self.item_embed_hist(user_idx, item_idx)
+        kwargs = dict(
             tensors=(item_id, item_hist), 
             dim=-1,
         )
+        rep_item = torch.cat(**kwargs)
 
         return rep_user, rep_item
 
-    def user_hist_embed(self, user_idx, item_idx):
+    def user_embed_hist(self, user_idx, item_idx):
         # get user vector from interactions
         user_slice = self.interactions[user_idx, :-1].clone()
         
@@ -108,7 +109,7 @@ class Module(nn.Module):
 
         return proj_user
 
-    def item_hist_embed(self, user_idx, item_idx):
+    def item_embed_hist(self, user_idx, item_idx):
         # get item vector from interactions
         item_slice = self.interactions.T[item_idx, :-1].clone()
         
@@ -122,33 +123,46 @@ class Module(nn.Module):
         return proj_item
 
     def _init_layers(self):
-        self.user_id_embed = nn.Embedding(
+        kwargs = dict(
             num_embeddings=self.n_users+1, 
             embedding_dim=self.n_factors,
             padding_idx=self.n_users,
         )
-        self.item_id_embed = nn.Embedding(
+        self.user_embed_id = nn.Embedding(**kwargs)
+
+        kwargs = dict(
             num_embeddings=self.n_items+1, 
             embedding_dim=self.n_factors,
             padding_idx=self.n_items,
         )
-        self.proj_u = nn.Linear(
+        self.item_embed_id = nn.Embedding(**kwargs)
+
+        nn.init.normal_(self.user_embed_id.weight, mean=0.0, std=0.01)
+        nn.init.normal_(self.item_embed_id.weight, mean=0.0, std=0.01)
+
+        kwargs = dict(
             in_features=self.n_items,
             out_features=self.n_factors,
             bias=False,
         )
-        self.proj_i = nn.Linear(
+        self.proj_u = nn.Linear(**kwargs)
+
+        kwargs = dict(
             in_features=self.n_users,
             out_features=self.n_factors,
             bias=False,
         )
+        self.proj_i = nn.Linear(**kwargs)
+
         self.mlp_layers = nn.Sequential(
             *list(self._generate_layers(self.hidden))
         )
-        self.logit_layer = nn.Linear(
+
+        kwargs = dict(
             in_features=self.hidden[-1],
             out_features=1,
         )
+        self.logit_layer = nn.Linear(**kwargs)
 
     def _generate_layers(self, hidden):
         idx = 1

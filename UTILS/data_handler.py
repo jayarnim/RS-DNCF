@@ -42,13 +42,16 @@ def description(
     col_item: str=DEFAULT_ITEM_COL,
 ):
     user_counts = data[col_user].value_counts()
+    item_counts = data[col_item].value_counts()
 
     N_USERS = data[col_user].nunique()
     N_ITEMS = data[col_item].nunique()
     TOTAL_INTERACTION = len(data)
     DENSITY = data.shape[0] / (N_USERS * N_ITEMS)
     MAX_USER_INTERACTION = user_counts.max()
+    MAX_ITEM_INTERACTION = item_counts.max()
     TOP_PERCENTAILE_USER_INTERACTION = user_counts.quantile(percentaile)
+    TOP_PERCENTAILE_ITEM_INTERACTION = item_counts.quantile(percentaile)
 
     print(
         f"number of user: {N_USERS}",
@@ -56,7 +59,9 @@ def description(
         f"total interaction: {TOTAL_INTERACTION}",
         f"interaction density: {DENSITY * 100:.4f} %",
         f"max interaction of user: {MAX_USER_INTERACTION}",
+        f"max interaction of item: {MAX_ITEM_INTERACTION}",
         f"top {(1-percentaile) * 100:.1f} % interaction of user: {TOP_PERCENTAILE_USER_INTERACTION:.1f}",
+        f"top {(1-percentaile) * 100:.1f} % interaction of item: {TOP_PERCENTAILE_ITEM_INTERACTION:.1f}",
         f"mean interaction of user: {TOTAL_INTERACTION // N_USERS}",
         f"mean interaction of item: {TOTAL_INTERACTION // N_ITEMS}",
         sep="\n",

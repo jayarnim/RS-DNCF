@@ -66,6 +66,10 @@ class PairwiseNegativeSamplingDataLoader:
         batch_size: int,
         shuffle: bool=True,
     ):
+        CONDITION = neg_per_pos == 1
+        ERROR_MESSAGE = "in pairwise data set, neg per pos must be 1:1"
+        assert CONDITION, ERROR_MESSAGE
+
         kwargs = dict(
             data=data, 
             neg_items_per_user=self.neg_items_per_user,

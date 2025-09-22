@@ -1,4 +1,7 @@
 from tqdm import tqdm
+from IPython.display import clear_output
+from time import perf_counter
+from statistics import mean
 import pandas as pd
 import torch
 from ..utils.constants import (
@@ -9,7 +12,7 @@ from ..utils.constants import (
 )
 
 
-class EarlyStoppingPredictor:
+class PerformancePredictor:
     def __init__(
         self, 
         model, 
@@ -40,10 +43,11 @@ class EarlyStoppingPredictor:
         item_idx_list = []
         label_list = []
         pred_list = []
+        computing_cost_list = []
 
         iter_obj = tqdm(
             iterable=dataloader, 
-            desc=f"EVALUATION",
+            desc=f"TST",
         )
 
         for user_idx, item_idx, label in iter_obj:
@@ -53,14 +57,21 @@ class EarlyStoppingPredictor:
                 item_idx=item_idx.to(self.device),
             )
 
+            # set starting time for computing cost
+            t0 = perf_counter()
+            
             # predict
-            preds = self.model.predict(**kwargs)
+            pred = self.model.predict(**kwargs)
+            
+            # calculate computing cost
+            computing_cost = perf_counter() - t0
 
-            # to cpu & save
+            # save
             user_idx_list.extend(user_idx.cpu().tolist())
             item_idx_list.extend(item_idx.cpu().tolist())
             label_list.extend(label.cpu().tolist())
-            pred_list.extend(preds.cpu().tolist())
+            pred_list.extend(pred.cpu().tolist())
+            computing_cost_list.append(computing_cost)
 
         # list -> df
         result = pd.DataFrame(
@@ -70,6 +81,17 @@ class EarlyStoppingPredictor:
                 self.col_label: label_list,
                 self.col_prediction: pred_list,
             }
+        )
+
+        clear_output(wait=False)
+
+        print(
+            "COMPUTING COST FOR INFERENCE",
+            f"\t(s/epoch): {sum(computing_cost_list):.4f}",
+            f"\t(epoch/s): {1.0/sum(computing_cost_list):.4f}",
+            f"\t(s/batch): {mean(computing_cost_list):.4f}",
+            f"\t(batch/s): {1.0/mean(computing_cost_list):.4f}",
+            sep="\n",
         )
 
         return result

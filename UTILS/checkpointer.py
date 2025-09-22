@@ -14,7 +14,7 @@ def save(model, path):
 
 
 def load(ModelClass, path, map_location=None):
-    checkpoint = torch.load(path, map_location=map_location)
+    checkpoint = torch.load(path, map_location=map_location, weights_only=False)
     model_args = checkpoint["model_args"]
     model = ModelClass(**model_args)
     model.load_state_dict(checkpoint["model_state_dict"])
