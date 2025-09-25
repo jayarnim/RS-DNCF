@@ -64,17 +64,17 @@ class Module(nn.Module):
         return pred_vector
 
     def rep(self, user_idx, item_idx):
-        user_id = self.user_embed_id(user_idx)
-        user_hist = self.user_embed_hist(user_idx, item_idx)
-        rep_user = user_id + user_hist
+        user_id_embed = self.user_id_embed(user_idx)
+        user_hist_embed = self.user_hist_embed(user_idx, item_idx)
+        rep_user = user_id_embed + user_hist_embed
 
-        item_id = self.item_embed_id(item_idx)
-        item_hist = self.item_embed_hist(user_idx, item_idx)
-        rep_item = item_id + item_hist
+        item_id_embed = self.item_id_embed(item_idx)
+        item_hist_embed = self.item_hist_embed(user_idx, item_idx)
+        rep_item = item_id_embed + item_hist_embed
 
         return rep_user, rep_item
 
-    def user_embed_hist(self, user_idx, item_idx):
+    def user_hist_embed(self, user_idx, item_idx):
         # get user vector from interactions
         user_slice = self.interactions[user_idx, :-1].clone()
         
@@ -89,7 +89,7 @@ class Module(nn.Module):
 
         return proj_user
 
-    def item_embed_hist(self, user_idx, item_idx):
+    def item_hist_embed(self, user_idx, item_idx):
         # get item vector from interactions
         item_slice = self.interactions.T[item_idx, :-1].clone()
         
@@ -110,17 +110,17 @@ class Module(nn.Module):
             embedding_dim=self.n_factors,
             padding_idx=self.n_users,
         )
-        self.user_embed_id = nn.Embedding(**kwargs)
+        self.user_id_embed = nn.Embedding(**kwargs)
 
         kwargs = dict(
             num_embeddings=self.n_items+1, 
             embedding_dim=self.n_factors,
             padding_idx=self.n_items,
         )
-        self.item_embed_id = nn.Embedding(**kwargs)
+        self.item_id_embed = nn.Embedding(**kwargs)
 
-        nn.init.normal_(self.user_embed_id.weight, mean=0.0, std=0.01)
-        nn.init.normal_(self.item_embed_id.weight, mean=0.0, std=0.01)
+        nn.init.normal_(self.user_id_embed.weight, mean=0.0, std=0.01)
+        nn.init.normal_(self.item_id_embed.weight, mean=0.0, std=0.01)
 
         kwargs = dict(
             in_features=self.n_items,
