@@ -79,7 +79,7 @@ class Module(nn.Module):
 
     def rep(self, user_idx, item_idx):
         user_id_embed = self.user_id_embed(user_idx)
-        user_hist_embed = self.user_hist_embed(user_idx, item_idx)
+        user_hist_embed = self.user_hist_embed_generator(user_idx, item_idx)
         kwargs = dict(
             tensors=(user_id_embed, user_hist_embed), 
             dim=-1,
@@ -87,7 +87,7 @@ class Module(nn.Module):
         rep_user = torch.cat(**kwargs)
 
         item_id_embed = self.item_id_embed(item_idx)
-        item_hist_embed = self.item_hist_embed(user_idx, item_idx)
+        item_hist_embed = self.item_hist_embed_generator(user_idx, item_idx)
         kwargs = dict(
             tensors=(item_id_embed, item_hist_embed), 
             dim=-1,
@@ -96,7 +96,7 @@ class Module(nn.Module):
 
         return rep_user, rep_item
 
-    def user_hist_embed(self, user_idx, item_idx):
+    def user_hist_embed_generator(self, user_idx, item_idx):
         # get user vector from interactions
         user_slice = self.interactions[user_idx, :-1].clone()
         
@@ -109,7 +109,7 @@ class Module(nn.Module):
 
         return proj_user
 
-    def item_hist_embed(self, user_idx, item_idx):
+    def item_hist_embed_generator(self, user_idx, item_idx):
         # get item vector from interactions
         item_slice = self.interactions.T[item_idx, :-1].clone()
         
