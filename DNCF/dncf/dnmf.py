@@ -60,14 +60,18 @@ class Module(nn.Module):
         return pred
 
     def score(self, user_idx, item_idx):
+        # modules
         pred_vector_dgmf = self.dgmf.gmf(user_idx, item_idx)
         pred_vector_dmlp = self.dmlp.ncf(user_idx, item_idx)
 
+        # agg
         kwargs = dict(
             tensors=(pred_vector_dgmf, pred_vector_dmlp), 
             dim=-1,
         )
         pred_vector = torch.cat(**kwargs)
+
+        # predict
         logit = self.logit_layer(pred_vector).squeeze(-1)
 
         return logit
