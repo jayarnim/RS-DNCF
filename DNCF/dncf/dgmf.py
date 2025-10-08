@@ -11,6 +11,7 @@ class Module(nn.Module):
         interactions: torch.Tensor, 
     ):
         super(Module, self).__init__()
+
         # attr dictionary for load
         self.init_args = locals().copy()
         del self.init_args["self"]
@@ -26,7 +27,7 @@ class Module(nn.Module):
         )
 
         # generate layers
-        self._init_layers()
+        self._set_up_components()
 
     def forward(
         self, 
@@ -64,13 +65,13 @@ class Module(nn.Module):
         return pred_vector
 
     def rep(self, user_idx, item_idx):
-        user_id_embed = self.user_id_embed(user_idx)
-        user_hist_embed = self.user_hist_embed_generator(user_idx, item_idx)
-        rep_user = user_id_embed + user_hist_embed
+        user_embed_slice_id = self.user_id_embed(user_idx)
+        user_embed_slice_hist = self.user_hist_embed_generator(user_idx, item_idx)
+        rep_user = user_embed_slice_id + user_embed_slice_hist
 
-        item_id_embed = self.item_id_embed(item_idx)
-        item_hist_embed = self.item_hist_embed_generator(user_idx, item_idx)
-        rep_item = item_id_embed + item_hist_embed
+        item_embed_slice_id = self.item_id_embed(item_idx)
+        item_embed_slice_hist = self.item_hist_embed_generator(user_idx, item_idx)
+        rep_item = item_embed_slice_id + item_embed_slice_hist
 
         return rep_user, rep_item
 
@@ -104,7 +105,11 @@ class Module(nn.Module):
 
         return proj_item
 
-    def _init_layers(self):
+    def _set_up_components(self):
+        self._create_embeddings()
+        self._create_layers()
+
+    def _create_embeddings(self):
         kwargs = dict(
             num_embeddings=self.n_users+1, 
             embedding_dim=self.n_factors,
@@ -118,9 +123,6 @@ class Module(nn.Module):
             padding_idx=self.n_items,
         )
         self.item_id_embed = nn.Embedding(**kwargs)
-
-        nn.init.normal_(self.user_id_embed.weight, mean=0.0, std=0.01)
-        nn.init.normal_(self.item_id_embed.weight, mean=0.0, std=0.01)
 
         kwargs = dict(
             in_features=self.n_items,
@@ -136,6 +138,7 @@ class Module(nn.Module):
         )
         self.proj_i = nn.Linear(**kwargs)
 
+    def _create_layers(self):
         kwargs = dict(
             in_features=self.n_factors,
             out_features=1, 

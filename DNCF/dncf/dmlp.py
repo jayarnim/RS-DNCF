@@ -13,6 +13,7 @@ class Module(nn.Module):
         interactions: torch.Tensor, 
     ):
         super(Module, self).__init__()
+
         # attr dictionary for load
         self.init_args = locals().copy()
         del self.init_args["self"]
@@ -33,7 +34,7 @@ class Module(nn.Module):
         self._assert_arg_error()
 
         # generate layers
-        self._init_layers()
+        self._set_up_components()
 
     def forward(
         self, 
@@ -78,18 +79,18 @@ class Module(nn.Module):
         return pred_vector
 
     def rep(self, user_idx, item_idx):
-        user_id_embed = self.user_id_embed(user_idx)
-        user_hist_embed = self.user_hist_embed_generator(user_idx, item_idx)
+        user_embed_slice_id = self.user_id_embed(user_idx)
+        user_embed_slice_hist = self.user_hist_embed_generator(user_idx, item_idx)
         kwargs = dict(
-            tensors=(user_id_embed, user_hist_embed), 
+            tensors=(user_embed_slice_id, user_embed_slice_hist), 
             dim=-1,
         )
         rep_user = torch.cat(**kwargs)
 
-        item_id_embed = self.item_id_embed(item_idx)
-        item_hist_embed = self.item_hist_embed_generator(user_idx, item_idx)
+        item_embed_slice_id = self.item_id_embed(item_idx)
+        item_embed_slice_hist = self.item_hist_embed_generator(user_idx, item_idx)
         kwargs = dict(
-            tensors=(item_id_embed, item_hist_embed), 
+            tensors=(item_embed_slice_id, item_embed_slice_hist), 
             dim=-1,
         )
         rep_item = torch.cat(**kwargs)
@@ -122,7 +123,11 @@ class Module(nn.Module):
 
         return proj_item
 
-    def _init_layers(self):
+    def _set_up_components(self):
+        self._create_embeddings()
+        self._create_layers()
+
+    def _create_embeddings(self):
         kwargs = dict(
             num_embeddings=self.n_users+1, 
             embedding_dim=self.n_factors,
@@ -136,9 +141,6 @@ class Module(nn.Module):
             padding_idx=self.n_items,
         )
         self.item_id_embed = nn.Embedding(**kwargs)
-
-        nn.init.normal_(self.user_id_embed.weight, mean=0.0, std=0.01)
-        nn.init.normal_(self.item_id_embed.weight, mean=0.0, std=0.01)
 
         kwargs = dict(
             in_features=self.n_items,
@@ -154,9 +156,9 @@ class Module(nn.Module):
         )
         self.proj_i = nn.Linear(**kwargs)
 
-        self.mlp_layers = nn.Sequential(
-            *list(self._generate_layers(self.hidden))
-        )
+    def _create_layers(self):
+        components = list(self._yield_layers(self.hidden))
+        self.mlp_layers = nn.Sequential(*components)
 
         kwargs = dict(
             in_features=self.hidden[-1],
@@ -164,7 +166,7 @@ class Module(nn.Module):
         )
         self.logit_layer = nn.Linear(**kwargs)
 
-    def _generate_layers(self, hidden):
+    def _yield_layers(self, hidden):
         idx = 1
         while idx < len(hidden):
             yield nn.Linear(hidden[idx-1], hidden[idx])
