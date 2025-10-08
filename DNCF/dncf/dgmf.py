@@ -60,50 +60,50 @@ class Module(nn.Module):
         return logit
 
     def gmf(self, user_idx, item_idx):
-        rep_user, rep_item = self.rep(user_idx, item_idx)
-        pred_vector = rep_user * rep_item
+        user_embed_slice, item_embed_slice = self.rep(user_idx, item_idx)
+        pred_vector = user_embed_slice * item_embed_slice
         return pred_vector
 
     def rep(self, user_idx, item_idx):
         user_embed_slice_id = self.user_id_embed(user_idx)
         user_embed_slice_hist = self.user_hist_embed_generator(user_idx, item_idx)
-        rep_user = user_embed_slice_id + user_embed_slice_hist
+        user_embed_slice = user_embed_slice_id + user_embed_slice_hist
 
         item_embed_slice_id = self.item_id_embed(item_idx)
         item_embed_slice_hist = self.item_hist_embed_generator(user_idx, item_idx)
-        rep_item = item_embed_slice_id + item_embed_slice_hist
+        item_embed_slice = item_embed_slice_id + item_embed_slice_hist
 
-        return rep_user, rep_item
+        return user_embed_slice, item_embed_slice
 
     def user_hist_embed_generator(self, user_idx, item_idx):
         # get user vector from interactions
-        user_slice = self.interactions[user_idx, :-1].clone()
+        user_interaction_slice = self.interactions[user_idx, :-1].clone()
         
         # masking target items
-        user_batch = torch.arange(user_idx.size(0))
-        user_slice[user_batch, item_idx] = 0
+        user_idx_batch = torch.arange(user_idx.size(0))
+        user_interaction_slice[user_idx_batch, item_idx] = 0
         
         # projection
-        user_sum = user_slice.sum(dim=1, keepdim=True)
-        user_sum = torch.clamp(user_sum, min=1.0)
-        proj_user = self.proj_u(user_slice.float()) / torch.sqrt(user_sum)
+        n_hist = user_interaction_slice.sum(dim=1, keepdim=True)
+        n_hist = torch.clamp(n_hist, min=1.0)
+        user_proj_slice = self.proj_u(user_interaction_slice.float()) / torch.sqrt(n_hist)
 
-        return proj_user
+        return user_proj_slice
 
     def item_hist_embed_generator(self, user_idx, item_idx):
         # get item vector from interactions
-        item_slice = self.interactions.T[item_idx, :-1].clone()
+        item_interaction_slice = self.interactions.T[item_idx, :-1].clone()
         
         # masking target users
-        item_batch = torch.arange(item_idx.size(0))
-        item_slice[item_batch, user_idx] = 0
+        item_idx_batch = torch.arange(item_idx.size(0))
+        item_interaction_slice[item_idx_batch, user_idx] = 0
         
         # projection
-        item_sum = item_slice.sum(dim=1, keepdim=True)
-        item_sum = torch.clamp(item_sum, min=1.0)
-        proj_item = self.proj_i(item_slice.float()) / torch.sqrt(item_sum)
+        n_hist = item_interaction_slice.sum(dim=1, keepdim=True)
+        n_hist = torch.clamp(n_hist, min=1.0)
+        item_proj_slice = self.proj_i(item_interaction_slice.float()) / torch.sqrt(n_hist)
 
-        return proj_item
+        return item_proj_slice
 
     def _set_up_components(self):
         self._create_embeddings()
@@ -124,6 +124,7 @@ class Module(nn.Module):
         )
         self.item_id_embed = nn.Embedding(**kwargs)
 
+    def _create_layers(self):
         kwargs = dict(
             in_features=self.n_items,
             out_features=self.n_factors,
@@ -138,7 +139,6 @@ class Module(nn.Module):
         )
         self.proj_i = nn.Linear(**kwargs)
 
-    def _create_layers(self):
         kwargs = dict(
             in_features=self.n_factors,
             out_features=1, 

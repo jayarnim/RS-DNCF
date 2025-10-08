@@ -85,7 +85,7 @@ class Module(nn.Module):
             tensors=(user_embed_slice_id, user_embed_slice_hist), 
             dim=-1,
         )
-        rep_user = torch.cat(**kwargs)
+        user_embed = torch.cat(**kwargs)
 
         item_embed_slice_id = self.item_id_embed(item_idx)
         item_embed_slice_hist = self.item_hist_embed_generator(user_idx, item_idx)
@@ -93,35 +93,35 @@ class Module(nn.Module):
             tensors=(item_embed_slice_id, item_embed_slice_hist), 
             dim=-1,
         )
-        rep_item = torch.cat(**kwargs)
+        item_embed = torch.cat(**kwargs)
 
-        return rep_user, rep_item
+        return user_embed, item_embed
 
     def user_hist_embed_generator(self, user_idx, item_idx):
         # get user vector from interactions
-        user_slice = self.interactions[user_idx, :-1].clone()
+        user_interaction_slice = self.interactions[user_idx, :-1].clone()
         
         # masking target items
-        user_batch = torch.arange(user_idx.size(0))
-        user_slice[user_batch, item_idx] = 0
+        user_idx_batch = torch.arange(user_idx.size(0))
+        user_interaction_slice[user_idx_batch, item_idx] = 0
         
         # projection
-        proj_user = self.proj_u(user_slice.float())
+        user_proj_slice = self.proj_u(user_interaction_slice.float())
 
-        return proj_user
+        return user_proj_slice
 
     def item_hist_embed_generator(self, user_idx, item_idx):
         # get item vector from interactions
-        item_slice = self.interactions.T[item_idx, :-1].clone()
+        item_interaction_slice = self.interactions.T[item_idx, :-1].clone()
         
         # masking target users
-        item_batch = torch.arange(item_idx.size(0))
-        item_slice[item_batch, user_idx] = 0
+        item_idx_batch = torch.arange(item_idx.size(0))
+        item_interaction_slice[item_idx_batch, user_idx] = 0
         
         # projection
-        proj_item = self.proj_i(item_slice.float())
+        item_proj_slice = self.proj_i(item_interaction_slice.float())
 
-        return proj_item
+        return item_proj_slice
 
     def _set_up_components(self):
         self._create_embeddings()
