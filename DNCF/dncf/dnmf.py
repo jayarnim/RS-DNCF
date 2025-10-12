@@ -13,7 +13,31 @@ class Module(nn.Module):
         dropout: float,
         interactions: torch.Tensor, 
     ):
-        super(Module, self).__init__()
+        """
+        Dual-embedding based neural collaborative filtering for recommender systems (He et al., 2021)
+        -----
+        Implements the base structure of Dual Neural Matrix Factorization (DNMF),
+        MF, MLP & dual embedding based latent factor model,
+        combining a Dual General Matrix Factorization (DGMF) and a Dual Multi-Layer Perceptron (DMLP)
+        to learn low-rank linear represenation & high-rank nonlinear user-item interactions.
+
+        Args:
+            n_users (int): 
+                total number of users in the dataset, U.
+            n_items (int): 
+                total number of items in the dataset, I.
+            n_factors (int): 
+                dimensionality of user and item latent representation vectors, K.
+            hidden (list): 
+                layer dimensions for the MLP-based matching function @ DMLP. 
+                (e.g., [64, 32, 16, 8])
+            dropout (float): 
+                dropout rate applied to MLP layers for regularization.
+            interaction (torch.Tensor): 
+                user-item interaction matrix, masked evaluation datasets. 
+                (shape: [U+1, I+1])
+        """
+        super().__init__()
 
         # attr dictionary for load
         self.init_args = locals().copy()
@@ -40,26 +64,43 @@ class Module(nn.Module):
         item_idx: torch.Tensor,
     ):
         """
-        user_idx: (B,)
-        item_idx: (B,)
+        Training Method
+
+        Args:
+            user_idx (torch.Tensor): target user idx (shape: [B,])
+            item_idx (torch.Tensor): target item idx (shape: [B,])
+        
+        Returns:
+            logit (torch.Tensor): (u,i) pair interaction logit (shape: [B,])
         """
         return self.score(user_idx, item_idx)
 
+    @torch.no_grad()
     def predict(
         self, 
         user_idx: torch.Tensor, 
         item_idx: torch.Tensor,
     ):
         """
-        user_idx: (B,)
-        item_idx: (B,)
+        Evaluation Method
+
+        Args:
+            user_idx (torch.Tensor): target user idx (shape: [B,])
+            item_idx (torch.Tensor): target item idx (shape: [B,])
+
+        Returns:
+            prob (torch.Tensor): (u,i) pair interaction probability (shape: [B,])
         """
-        with torch.no_grad():
-            logit = self.score(user_idx, item_idx)
-            pred = torch.sigmoid(logit)
-        return pred
+        logit = self.score(user_idx, item_idx)
+        prob = torch.sigmoid(logit)
+        return prob
 
     def score(self, user_idx, item_idx):
+        pred_vector = self.ensemble(user_idx, item_idx)
+        logit = self.pred_layer(pred_vector).squeeze(-1)
+        return logit
+
+    def ensemble(self, user_idx, item_idx):
         # modules
         pred_vector_dgmf = self.dgmf.gmf(user_idx, item_idx)
         pred_vector_dmlp = self.dmlp.ncf(user_idx, item_idx)
@@ -71,10 +112,7 @@ class Module(nn.Module):
         )
         pred_vector = torch.cat(**kwargs)
 
-        # predict
-        logit = self.logit_layer(pred_vector).squeeze(-1)
-
-        return logit
+        return pred_vector
 
     def _set_up_components(self):
         self._create_modules()
@@ -104,4 +142,4 @@ class Module(nn.Module):
             in_features=self.n_factors//2 + self.hidden[-1],
             out_features=1,
         )
-        self.logit_layer = nn.Linear(**kwargs)
+        self.pred_layer = nn.Linear(**kwargs)
