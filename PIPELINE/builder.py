@@ -18,8 +18,6 @@ class Builder:
     def __init__(
         self, 
         origin: pd.DataFrame,
-        n_users: int, 
-        n_items: int,
         learning_type: LEARNING_TYPE="pointwise",
         col_user: str=DEFAULT_USER_COL, 
         col_item: str=DEFAULT_ITEM_COL,
@@ -34,10 +32,6 @@ class Builder:
             origin (pd.DataFrame):
                 The full implicit-feedback dataset containing user-item interactions.  
                 Must include columns corresponding to `col_user`, `col_item`, and (optionally) `col_rating` if available.
-            n_users (int):
-                Total number of users in the dataset.
-            n_items (int):
-                Total number of items in the dataset.
             learning_type (str):
                 Learning paradigm used for training data construction.
                 Determines the type of `CustomizedDataLoader` to be instantiated.
@@ -45,8 +39,6 @@ class Builder:
         """
         # global attr
         self.origin = origin
-        self.n_users = n_users
-        self.n_items = n_items
         self.col_user = col_user
         self.col_item = col_item
         self.learning_type = learning_type
@@ -278,8 +270,16 @@ class Builder:
         assert CONDITION, ERROR_MESSAGE
 
     def _set_up_components(self):
+        self._init_entities()
         self._init_dataloader_lrn()
         self._init_dataloader_eval()
+
+    def _init_entities(self):
+        self.user_list = sorted(self.origin[self.col_user].unique())
+        self.item_list = sorted(self.origin[self.col_item].unique())
+
+        self.n_users = len(self.user_list)
+        self.n_items = len(self.item_list)
 
     def _init_dataloader_lrn(self):
         kwargs = dict(
