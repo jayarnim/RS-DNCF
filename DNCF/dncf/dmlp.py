@@ -103,10 +103,10 @@ class Module(nn.Module):
         return logit
 
     def ncf(self, user_idx, item_idx):
-        rep_user, rep_item = self.rep(user_idx, item_idx)
+        user_embed_slice, item_embed_slice = self.rep(user_idx, item_idx)
         
         kwargs = dict(
-            tensors=(rep_user, rep_item), 
+            tensors=(user_embed_slice, item_embed_slice), 
             dim=-1,
         )
         concat = torch.cat(**kwargs)
@@ -121,7 +121,7 @@ class Module(nn.Module):
             tensors=(user_embed_slice_id, user_embed_slice_hist), 
             dim=-1,
         )
-        user_embed = torch.cat(**kwargs)
+        user_embed_slice = torch.cat(**kwargs)
 
         item_embed_slice_id = self.item_id_embed(item_idx)
         item_embed_slice_hist = self.item_hist_embed_generator(user_idx, item_idx)
@@ -129,9 +129,9 @@ class Module(nn.Module):
             tensors=(item_embed_slice_id, item_embed_slice_hist), 
             dim=-1,
         )
-        item_embed = torch.cat(**kwargs)
+        item_embed_slice = torch.cat(**kwargs)
 
-        return user_embed, item_embed
+        return user_embed_slice, item_embed_slice
 
     def user_hist_embed_generator(self, user_idx, item_idx):
         # get user vector from interactions
@@ -142,7 +142,9 @@ class Module(nn.Module):
         user_interaction_slice[user_idx_batch, item_idx] = 0
         
         # projection
-        user_proj_slice = self.proj_u(user_interaction_slice.float())
+        n_hist = user_interaction_slice.sum(dim=1, keepdim=True)
+        n_hist = torch.clamp(n_hist, min=1.0)
+        user_proj_slice = self.proj_u(user_interaction_slice.float()) / torch.sqrt(n_hist)
 
         return user_proj_slice
 
@@ -155,7 +157,9 @@ class Module(nn.Module):
         item_interaction_slice[item_idx_batch, user_idx] = 0
         
         # projection
-        item_proj_slice = self.proj_i(item_interaction_slice.float())
+        n_hist = item_interaction_slice.sum(dim=1, keepdim=True)
+        n_hist = torch.clamp(n_hist, min=1.0)
+        item_proj_slice = self.proj_i(item_interaction_slice.float()) / torch.sqrt(n_hist)
 
         return item_proj_slice
 
