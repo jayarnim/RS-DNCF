@@ -1,0 +1,5 @@
+name: movielens
+
+entity:
+  num_users: 609
+  num_items: 8452

@@ -1,6 +1,6 @@
 from . import (
     checkpointer,
-    constants,
+    config,
     datahandler,
     seed,
     visualizer,
