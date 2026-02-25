@@ -1,0 +1,78 @@
+# RUNTIME ==========
+seed: 42
+
+
+# STRATEGY ==========
+strategy: pointwise
+
+
+# DATA ==========
+data:
+  name: movielens
+  entity:
+    num_users: 609
+    num_items: 8452
+
+
+# MODEL ==========
+model:
+  name: dnmf
+  params:
+    dgmf:
+      num_factors: 32
+      combiner: att
+    dmlp:
+      num_factors: 32
+      hidden_dim: [128, 64, 32]
+      dropout: 0.2
+
+
+# PIPELINE PACKAGE ==========
+split:
+  ratio:
+    trn: 8
+    val: 1
+    tst: 1
+  min_rating: 1
+  filter_by: user
+
+dataloader:
+  negatives:
+    ratio:
+      opt: 4
+      msr: 99
+  batch_size: 256
+  shuffle: True
+
+histories:
+  selector:
+    name: default
+    params:
+      max_hist:
+
+
+# TRAINER PACKAGE ==========
+trainer:
+  num_epochs: 100
+
+loss:
+  name: bce
+  params:
+
+optimizer:
+  name: adamw
+  params:
+    lr: 0.001
+    weight_decay: 0.00001
+
+monitor:
+  metric: ndcg
+  k: 10
+  delta: 0.001
+  patience: 5
+  warmup: 10
+
+
+# EVALUATOR PACKAGE ==========
+evaluator:
+  cutoff: [5, 10, 15, 20, 25, 50]
