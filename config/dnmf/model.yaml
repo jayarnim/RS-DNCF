@@ -1,0 +1,8 @@
+dgmf:
+  num_factors: 32
+  combiner: att
+
+dmlp:
+  num_factors: 32
+  hidden_dim: [128, 64, 32]
+  dropout: 0.2

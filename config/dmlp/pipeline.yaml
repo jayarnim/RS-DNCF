@@ -1,0 +1,19 @@
+# PIPELINE PACKAGE ==========
+dataloader:
+  split_ratio:
+    trn: 8
+    val: 1
+    tst: 1
+  num_negatives:
+    opt: 4
+    eval: 99
+  batch_size: 256
+  shuffle: True
+
+histories:
+  user:
+    selector: default
+    max_hist: 
+  item:
+    selector: default
+    max_hist: 

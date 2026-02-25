@@ -1,0 +1,21 @@
+# TRAINER PACKAGE ==========
+engine:
+  criterion: bce
+
+monitor:
+  criterion: ndcg
+  delta: 0.001
+  patience: 5
+  warmup: 10
+
+trainer:
+  num_epochs: 100
+
+# If opt config must be set individually for each module,
+# the model must have the `param_groups` method set.
+# If opt config are not set for each module,
+# please comment out the line: param_groups, module_name, lr_scale, weight_decay.
+optimizer:
+  name: adamw
+  lr: 0.001
+  weight_decay: 0.00001
